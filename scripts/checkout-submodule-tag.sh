@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # ./scripts/checkout-submodule-tag.sh v1.26.7
+# https://github.com/router-for-me/Cli-Proxy-API-Management-Center/releases
 set -euo pipefail
 
 usage() {

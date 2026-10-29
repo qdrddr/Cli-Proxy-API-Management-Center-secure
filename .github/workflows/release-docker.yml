@@ -3,9 +3,15 @@ name: Release Docker Image
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Management Center git tag to build (e.g. v1.26.7)
+        required: true
+        type: string
 
 concurrency:
-  group: release-docker-${{ github.event.release.tag_name }}
+  group: release-docker-${{ github.event.release.tag_name || inputs.tag }}
   cancel-in-progress: false
 
 jobs:
@@ -32,7 +38,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push image
-        run: ./scripts/build-and-push-image.sh "${{ github.event.release.tag_name }}"
+        run: ./scripts/build-and-push-image.sh "${{ github.event.release.tag_name || inputs.tag }}"
         env:
           DOCKER_IMAGE: ${{ vars.DOCKER_IMAGE || env.DOCKER_IMAGE }}
           NONO_VERSION: ${{ vars.NONO_VERSION || env.NONO_VERSION }}

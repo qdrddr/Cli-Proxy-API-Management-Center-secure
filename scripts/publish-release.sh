@@ -19,6 +19,7 @@ fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SUBMODULE="${ROOT}/Cli-Proxy-API-Management-Center"
+DOCKER_IMAGE="${DOCKER_IMAGE:-bbkudk/cli-proxy-api-management-center-secure}"
 
 if ! git -C "$SUBMODULE" rev-parse --git-dir >/dev/null 2>&1; then
   echo "Submodule not initialized at ${SUBMODULE}." >&2
@@ -93,7 +94,9 @@ git push origin "$TAG"
 NOTES_FILE="$(mktemp)"
 trap 'rm -f "$NOTES_FILE"' EXIT
 {
-  echo "Docker image release for **${TAG}**, built from [router-for-me/Cli-Proxy-API-Management-Center](https://github.com/router-for-me/Cli-Proxy-API-Management-Center) at \`${TAG}\`."
+  echo "Docker image \`${DOCKER_IMAGE}:${TAG}\` (and \`:latest\` when this is the newest upstream semver tag)."
+  echo
+  echo "Built from [router-for-me/Cli-Proxy-API-Management-Center](https://github.com/router-for-me/Cli-Proxy-API-Management-Center) at \`${TAG}\`, with deployment overlay from [qdrddr/Cli-Proxy-API-Management-Center-secure](https://github.com/qdrddr/Cli-Proxy-API-Management-Center-secure)."
   echo
   echo "Submodule commit: \`$(git -C "$SUBMODULE" rev-parse --short HEAD)\`"
 } >"$NOTES_FILE"
@@ -102,4 +105,4 @@ gh release create "$TAG" \
   --title "$TAG" \
   --notes-file "$NOTES_FILE"
 
-echo "Published release ${TAG}. CI workflow Release Docker Image should start shortly."
+echo "Published release ${TAG}. CI will push ${DOCKER_IMAGE}:${TAG} to Docker Hub."

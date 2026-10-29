@@ -56,7 +56,7 @@ services:
     restart: unless-stopped
 
   management-center:
-    image: ${MANAGEMENT_IMAGE:-bbkudk/cli-proxy-management-center:v1.26.7}
+    image: ${MANAGEMENT_IMAGE:-bbkudk/cli-proxy-api-management-center-secure:v1.26.7}
     build:
       context: ../..
       dockerfile: deployment/docker/Dockerfile

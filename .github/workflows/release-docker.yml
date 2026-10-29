@@ -14,6 +14,9 @@ jobs:
     environment: build
     permissions:
       contents: read
+    env:
+      DOCKER_IMAGE: bbkudk/cli-proxy-api-management-center-secure
+      NONO_VERSION: "0.80.0"
 
     steps:
       - name: Checkout repository and submodule
@@ -31,5 +34,5 @@ jobs:
       - name: Build and push image
         run: ./scripts/build-and-push-image.sh "${{ github.event.release.tag_name }}"
         env:
-          DOCKER_IMAGE: ${{ vars.DOCKER_IMAGE }}
-          NONO_VERSION: ${{ vars.NONO_VERSION }}
+          DOCKER_IMAGE: ${{ vars.DOCKER_IMAGE || env.DOCKER_IMAGE }}
+          NONO_VERSION: ${{ vars.NONO_VERSION || env.NONO_VERSION }}

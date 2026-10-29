@@ -37,9 +37,9 @@ RUN mkdir -p /root/.config/nono/profiles \
 
 COPY deployment/docker/nono/profiles/management.json /root/.config/nono/profiles/management.json
 
-LABEL org.opencontainers.image.title="CLI Proxy API Management Center" \
-  org.opencontainers.image.description="Official web UI for CLIProxyAPI with optional API reverse proxy (nono sandbox)" \
-  org.opencontainers.image.source="https://github.com/router-for-me/Cli-Proxy-API-Management-Center"
+LABEL org.opencontainers.image.title="CLI Proxy API Management Center (secure nono sbx)" \
+  org.opencontainers.image.description="Management Center web UI for CLIProxyAPI with nono-hardened deployment overlay" \
+  org.opencontainers.image.source="https://github.com/qdrddr/Cli-Proxy-API-Management-Center-secure"
 
 ENV NGINX_PORT=8080 \
   CLIPROXY_API_BACKEND=http://cli-proxy-api:8317 \

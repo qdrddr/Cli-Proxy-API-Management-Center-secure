@@ -9,7 +9,7 @@ usage() {
   echo "  No tag: build from submodule HEAD (must be exactly on a git tag)" >&2
   echo "  With tag: checkout tag, sync deployment/docker, then build and push" >&2
   echo "Example: $(basename "$0") v1.26.7" >&2
-  echo "Env: DOCKER_IMAGE (default bbkudk/cli-proxy-management-center), NONO_VERSION (default 0.80.0)" >&2
+  echo "Env: DOCKER_IMAGE (default bbkudk/cli-proxy-api-management-center-secure), NONO_VERSION (default 0.80.0)" >&2
 }
 
 highest_version_tag() {
@@ -24,7 +24,7 @@ fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SUBMODULE="${ROOT}/Cli-Proxy-API-Management-Center"
-DOCKER_IMAGE="${DOCKER_IMAGE:-bbkudk/cli-proxy-management-center}"
+DOCKER_IMAGE="${DOCKER_IMAGE:-bbkudk/cli-proxy-api-management-center-secure}"
 NONO_VERSION="${NONO_VERSION:-0.80.0}"
 
 if ! git -C "$SUBMODULE" rev-parse --git-dir >/dev/null 2>&1; then

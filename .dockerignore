@@ -1,0 +1,19 @@
+# Used when building with repository root as context:
+#   docker build -f deployment/docker/Dockerfile .
+# Keep aligned with deployment/docker/.dockerignore
+
+node_modules
+dist
+.git
+.github
+*.md
+!README.md
+tests
+.env
+.env.*
+.DS_Store
+coverage
+*.log
+deployment/docker/auths
+deployment/docker/logs
+deployment/docker/plugins

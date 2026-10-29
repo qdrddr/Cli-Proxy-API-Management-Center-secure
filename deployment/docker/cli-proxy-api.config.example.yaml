@@ -1,0 +1,30 @@
+# Minimal CLIProxyAPI config for docker-compose.yml (v8 layout).
+# Copy to a private path and set CLI_PROXY_CONFIG_PATH for production.
+#
+# oauth.auth-dir must be present so bbkudk/cli-proxy-api's nono entrypoint rewrites it to
+# /CLIProxyAPI/.staging/auths (writable inside the sandbox). Without this, OAuth callbacks
+# fail with "permission denied" on /root/.cli-proxy-api bind mounts.
+config-version: 8
+
+server:
+  port: 8317
+
+management:
+  allow-remote: true
+  secret-key: "change-me"
+  disable-control-panel: true
+
+access:
+  api-keys: []
+
+oauth:
+  auth-dir: "/root/.cli-proxy-api"
+
+plugins:
+  dir: "/CLIProxyAPI/data/plugins"
+
+# Optional file logging (path must stay under /CLIProxyAPI/data for nono):
+# observability:
+#   logs:
+#     request-log: true
+#     path: "/CLIProxyAPI/data/logs"

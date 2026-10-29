@@ -1,0 +1,83 @@
+# CLIProxyAPI + Management Center UI (same-origin via reverse proxy).
+#
+# Run from this directory:
+#   docker compose up -d
+#
+# 1. Config default: ./cli-proxy-api.config.example.yaml (must be a FILE). It must include
+#    oauth.auth-dir so the API nono entrypoint stages credentials under /CLIProxyAPI/.staging/auths.
+#    If you bind ./config.yaml before the file exists, Docker creates a directory and the API crash-loops.
+#    Fix: docker compose down && rm -rf config.yaml
+#      cp cli-proxy-api.config.example.yaml config.yaml  # edit secret-key
+#      export CLI_PROXY_CONFIG_PATH=./config.yaml
+# 2. Open http://localhost:8081/management.html (8080 is often taken by a local nginx).
+#    Sign in with your management key. API base URL defaults to this host; nginx proxies /v8 and /v0.
+# 3. Management Center runs under nono. The default CLI_PROXY_IMAGE (local-proxy-test) is unsandboxed and
+#    does not mount nono/profiles/claude.json. For bbkudk/cli-proxy-api, set CLI_PROXY_IMAGE and uncomment
+#    the API nono profile volume below. Override UI profile: NONO_PROFILE_PATH=./nono/profiles/management.json
+# 4. Optional env: TZ (default UTC), NGINX_PORT, CLIPROXY_API_BACKEND, NONO_VERSION, MANAGEMENT_PORT.
+# 5. Git / PostgreSQL / S3-backed config & tokens: copy env.example to .env and set GITSTORE_* / PGSTORE_* /
+#    OBJECTSTORE_* (see https://help.router-for.me/configuration/storage/). Mirrors use /CLIProxyAPI/data
+#    (cli-proxy-api-data volume). Add NONO_RUN_ARGS --allow-domain for private Git, DB, or S3 hosts.
+
+services:
+  cli-proxy-api:
+    image: ${CLI_PROXY_IMAGE:-cli-proxy-api:local-proxy-test}
+    pull_policy: never
+    container_name: cli-proxy-api
+    ports:
+      - '8317:8317'
+    environment:
+      GITSTORE_LOCAL_PATH: ${GITSTORE_LOCAL_PATH:-/CLIProxyAPI/data}
+      PGSTORE_LOCAL_PATH: ${PGSTORE_LOCAL_PATH:-/CLIProxyAPI/data}
+      OBJECTSTORE_LOCAL_PATH: ${OBJECTSTORE_LOCAL_PATH:-/CLIProxyAPI/data}
+      GITSTORE_GIT_URL: ${GITSTORE_GIT_URL:-}
+      GITSTORE_GIT_USERNAME: ${GITSTORE_GIT_USERNAME:-}
+      GITSTORE_GIT_TOKEN: ${GITSTORE_GIT_TOKEN:-}
+      GITSTORE_GIT_BRANCH: ${GITSTORE_GIT_BRANCH:-}
+      PGSTORE_DSN: ${PGSTORE_DSN:-}
+      PGSTORE_SCHEMA: ${PGSTORE_SCHEMA:-}
+      OBJECTSTORE_ENDPOINT: ${OBJECTSTORE_ENDPOINT:-}
+      OBJECTSTORE_BUCKET: ${OBJECTSTORE_BUCKET:-}
+      OBJECTSTORE_ACCESS_KEY: ${OBJECTSTORE_ACCESS_KEY:-}
+      OBJECTSTORE_SECRET_KEY: ${OBJECTSTORE_SECRET_KEY:-}
+    volumes:
+      - ${CLI_PROXY_CONFIG_PATH:-./cli-proxy-api.config.yaml}:/CLIProxyAPI/config.yaml:ro
+      # Seed only: entrypoint copies into /CLIProxyAPI/.staging/auths (nono-writable). Do not rely on writes here.
+      - ${CLI_PROXY_AUTH_PATH:-./auths}:/root/.cli-proxy-api
+      - cli-proxy-api-data:/CLIProxyAPI/data
+      # bbkudk/cli-proxy-api (nono entrypoint) only:
+      # - ${API_NONO_PROFILE_PATH:-./nono/profiles/claude.json}:/root/.config/nono/profiles/claude.json:ro
+    healthcheck:
+      test: ['CMD', 'bash', '-c', 'echo > /dev/tcp/127.0.0.1/8317']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  management-center:
+    image: ${MANAGEMENT_IMAGE:-bbkudk/cli-proxy-management-center:v1.26.7}
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
+      args:
+        VERSION: ${MANAGEMENT_VERSION:-v1.26.7}
+        NONO_VERSION: ${NONO_VERSION:-0.80.0}
+    container_name: cli-proxy-management-center
+    depends_on:
+      cli-proxy-api:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-UTC}
+      NGINX_PORT: ${NGINX_PORT:-8080}
+      CLIPROXY_API_BACKEND: ${CLIPROXY_API_BACKEND:-http://cli-proxy-api:8317}
+      NONO_PROFILE: ${NONO_PROFILE:-management}
+      NONO_RUN_ARGS: ${NONO_RUN_ARGS:-}
+    volumes:
+      - ${NONO_PROFILE_PATH:-./nono/profiles/management.json}:/root/.config/nono/profiles/management.json:ro
+    ports:
+      - '${MANAGEMENT_PORT:-8081}:8080'
+    restart: unless-stopped
+
+volumes:
+  cli-proxy-api-data:

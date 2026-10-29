@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.github
+*.md
+!README.md
+tests
+.env
+.env.*
+.DS_Store
+coverage
+*.log
+deployment/docker/auths
+deployment/docker/logs
+deployment/docker/plugins

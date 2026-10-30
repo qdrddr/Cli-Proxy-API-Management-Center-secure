@@ -20,7 +20,7 @@ RUN bun run build \
 
 FROM debian:bookworm
 
-ARG NONO_VERSION=0.80.0
+ARG NONO_VERSION=0.81.0
 ARG TARGETARCH
 
 RUN apt-get update && apt-get install -y --no-install-recommends \

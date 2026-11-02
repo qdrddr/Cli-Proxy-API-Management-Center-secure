@@ -20,8 +20,11 @@ RUN bun run build \
 
 FROM debian:bookworm
 
+ARG VERSION=v1.26.7
 ARG NONO_VERSION=0.81.0
 ARG TARGETARCH
+
+LABEL org.opencontainers.image.version="${VERSION}-${NONO_VERSION}"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata ca-certificates wget nginx gettext-base socat \

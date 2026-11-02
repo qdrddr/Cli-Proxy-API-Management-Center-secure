@@ -26,8 +26,9 @@ Pushing a composite tag runs CI; a GitHub Release is created automatically after
 ## Re-run build for an existing tag
 
 ```bash
-./scripts/re-release.sh v1.26.7-0.81.0           # CI from main
+./scripts/re-release.sh v1.26.7-0.81.0           # CI from main (same Docker tag)
 ./scripts/re-release.sh v1.26.7-0.81.0 --local   # docker login, then build & push locally
+./scripts/re-release.sh v1.26.7-0.81.0 --retag   # move composite git tag to HEAD, force-push
 ```
 
 Legacy upstream-only tags (e.g. `v1.26.7`) still trigger CI via **GitHub Release published**.

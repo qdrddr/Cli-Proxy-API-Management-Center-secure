@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Rebuild and push an existing release (same Docker tag / composite git tag).
 # ./scripts/re-release.sh --app v1.26.7 --nono 0.81.0
-# ./scripts/re-release.sh v1.26.7-0.81.0
-# ./scripts/re-release.sh v1.26.7-0.81.0 --local
+# ./scripts/re-release.sh v1.27.2-v0.81.0
+# ./scripts/re-release.sh v1.27.2-v0.81.0 --local
 # ./scripts/re-release.sh --app v1.26.7 --nono 0.81.0 --retag
 set -euo pipefail
 

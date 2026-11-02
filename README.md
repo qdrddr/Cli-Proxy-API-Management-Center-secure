@@ -1,48 +1,40 @@
-# CLI Proxy API Management Center (secure nono SBX)
+# Cli-Proxy-API-Management-Center-secure
 
-Thin wrapper around [router-for-me/Cli-Proxy-API-Management-Center](https://github.com/router-for-me/Cli-Proxy-API-Management-Center): copies `deployment/docker/` into the submodule, builds, and pushes a Docker image.
+Docker image for the **[CLI Proxy API Management Center](https://github.com/router-for-me/Cli-Proxy-API-Management-Center)** UI, wrapped in **[nono](https://github.com/nolabs-ai/nono)** (nginx + socat to CLIProxyAPI).
 
-**Default image:** `bbkudk/cli-proxy-api-management-center-secure:<composite-tag>` (e.g. `v1.26.7-0.81.0`).
+**Default image:** `bbkudk/cli-proxy-api-management-center-secure:<canonical-tag>` (e.g. `v1.27.2-v0.81.0`).
 
-## First release (new composite tag)
+## Release
 
-```bash
-git submodule update --init --recursive
-git checkout main && git pull
-./scripts/publish-release.sh --app v1.26.7 --nono 0.81.0   # creates v1.26.7-0.81.0
-```
-
-Creates composite git tag + GitHub release → CI builds and pushes the image (`build` environment needs `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN`).
-
-## Tag-only release
+Git tag and Docker Hub tag are the same: **`v{app}-v{nono}`**.
 
 ```bash
-git tag -a v1.26.7-0.81.0 -m "Management Center v1.26.7 + nono 0.81.0"
-git push origin v1.26.7-0.81.0
+./scripts/publish-release.sh --app v1.27.2 --nono 0.81.0   # creates v1.27.2-v0.81.0
+./scripts/publish-release.sh v1.27.2-v0.81.0
 ```
 
-Pushing a composite tag runs CI; a GitHub Release is created automatically after a successful build if one does not exist.
-
-## Re-run build for an existing tag
+Tag-only (CI on push):
 
 ```bash
-./scripts/re-release.sh --app v1.26.7 --nono 0.81.0
-./scripts/re-release.sh v1.26.7-0.81.0           # CI checks out git tag v1.26.7-0.81.0
-./scripts/re-release.sh v1.26.7-0.81.0 --local   # docker login, then build & push locally
-./scripts/re-release.sh v1.26.7-0.81.0 --retag   # move composite git tag to HEAD, force-push
+git tag -a v1.27.2-v0.81.0 -m "Management Center v1.27.2 + nono 0.81.0"
+git push origin v1.27.2-v0.81.0
 ```
 
-Legacy upstream-only tags (e.g. `v1.26.7`) still trigger CI via **GitHub Release published**.
+Rebuild:
 
-## Scripts
+```bash
+./scripts/re-release.sh --app v1.27.2 --nono 0.81.0
+./scripts/re-release.sh v1.27.2-v0.81.0           # CI checks out git tag v1.27.2-v0.81.0
+./scripts/re-release.sh v1.27.2-v0.81.0 --local   # docker login, then build & push locally
+./scripts/re-release.sh v1.27.2-v0.81.0 --retag   # move composite git tag to HEAD, force-push
+```
 
 | Script | Purpose |
 |--------|---------|
-| `lib/parse-release-tag.sh` | Parse upstream or composite refs |
-| `publish-release.sh` | Composite tag wrapper repo, push, `gh release create` |
-| `re-release.sh` | Rebuild an existing tag (CI or `--local`) |
-| `build-and-push-image.sh` | Checkout submodule tag, copy docker files, build & push |
-| `checkout-submodule-tag.sh` | Submodule only |
-| `copy-deployment-docker.sh` | Rsync overlay only |
+| `lib/parse-release-tag.sh` | Parse canonical refs |
+| `lib/resolve-release-args.sh` | `--app` / `--nono` CLI |
+| `publish-release.sh` | Tag + GitHub release |
+| `re-release.sh` | Rebuild existing tag |
+| `build-and-push-image.sh` | Local or CI image push |
 
-Override image or nono version: `DOCKER_IMAGE`, `NONO_VERSION` (env or GitHub Actions variables).
+Override image or nono default: `DOCKER_IMAGE`, `NONO_VERSION` (env or GitHub Actions variables).

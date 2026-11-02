@@ -8,8 +8,8 @@ usage() {
   echo "Usage: $(basename "$0") [git-tag]" >&2
   echo "  No tag: build from submodule HEAD (must be exactly on a git tag)" >&2
   echo "  With tag: checkout tag, sync deployment/docker, then build and push" >&2
-  echo "Example: $(basename "$0") v1.26.7  # pushes bbkudk/cli-proxy-api-management-center-secure:v1.26.7-0.81.0" >&2
-  echo "         $(basename "$0") v1.26.7-0.81.0  # composite git/docker tag" >&2
+  echo "Example: $(basename "$0") v1.27.2-v0.81.0  # canonical git + Docker Hub tag" >&2
+  echo "         No tag: submodule HEAD tag + NONO_VERSION → v{app}-v{nono}" >&2
   echo "Env: DOCKER_IMAGE (default bbkudk/cli-proxy-api-management-center-secure), NONO_VERSION (default 0.81.0)" >&2
   echo "  DOCKER_PLATFORMS (optional, e.g. linux/amd64,linux/arm64) — uses buildx and --push" >&2
 }
@@ -40,10 +40,10 @@ else
   upstream_tag="$(git -C "$SUBMODULE" describe --tags --exact-match HEAD 2>/dev/null || true)"
   if [[ -z "$upstream_tag" ]]; then
     echo "Submodule HEAD is not exactly on a git tag." >&2
-    echo "Pass a tag: ./scripts/build-and-push-image.sh v1.26.7" >&2
+    echo "Pass a tag: ./scripts/build-and-push-image.sh v1.27.2-v0.81.0" >&2
     exit 1
   fi
-  parse_release_tag "$upstream_tag"
+  canonical_release_tag "$upstream_tag" "${NONO_VERSION#v}"
 fi
 
 if [[ ! "$BASE_TAG" =~ ^[A-Za-z0-9._-]+$ ]]; then

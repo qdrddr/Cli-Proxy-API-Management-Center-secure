@@ -2,18 +2,17 @@
 # Tag this repo with a composite ref, push, and publish a GitHub release (triggers CI).
 # Requires: gh auth login, push access to origin.
 #
-# ./scripts/publish-release.sh --app v1.26.7 --nono 0.81.0
-# ./scripts/publish-release.sh v1.26.7
-# ./scripts/publish-release.sh v1.26.7-0.81.0
+# ./scripts/publish-release.sh --app v1.27.2 --nono 0.81.0
+# ./scripts/publish-release.sh v1.27.2-v0.81.0
 set -euo pipefail
 
 usage() {
   echo "Usage: $(basename "$0") --app <upstream-tag> [--nono <semver>]" >&2
-  echo "       $(basename "$0") [<upstream-tag> | <composite-tag>]" >&2
-  echo "  --app   Upstream app tag (e.g. v1.26.7); --nono defaults to 0.81.0 or NONO_VERSION" >&2
+  echo "       $(basename "$0") <canonical-tag>" >&2
+  echo "  --app   Upstream app tag (e.g. v1.27.2); --nono defaults to 0.81.0 or NONO_VERSION" >&2
   echo "  No args: use submodule HEAD (must be exactly on a git tag)" >&2
-  echo "Example: $(basename "$0") --app v1.26.7 --nono 0.81.0  # git/docker tag v1.26.7-0.81.0" >&2
-  echo "Example: $(basename "$0") v1.26.7-0.81.0" >&2
+  echo "Example: $(basename "$0") --app v1.27.2 --nono 0.81.0  # git/docker tag v1.27.2-v0.81.0" >&2
+  echo "Example: $(basename "$0") v1.27.2-v0.81.0" >&2
 }
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -51,11 +50,11 @@ if [[ "${RESOLVE_FROM_SUBMODULE:-0}" -eq 1 ]]; then
   upstream_tag="$(git -C "$SUBMODULE" describe --tags --exact-match HEAD 2>/dev/null || true)"
   if [[ -z "$upstream_tag" ]]; then
     echo "Submodule HEAD is not exactly on a git tag." >&2
-    echo "Pass --app v1.26.7 or a positional tag." >&2
+    echo "Pass --app v1.27.2 or a positional canonical tag." >&2
     exit 1
   fi
   export NONO_VERSION
-  parse_release_tag "$upstream_tag"
+  canonical_release_tag "$upstream_tag" "${NONO_VERSION#v}"
 else
   "${ROOT}/scripts/checkout-submodule-tag.sh" "$BASE_TAG"
 fi

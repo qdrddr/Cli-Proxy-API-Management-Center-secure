@@ -56,12 +56,12 @@ services:
     restart: unless-stopped
 
   management-center:
-    image: ${MANAGEMENT_IMAGE:-bbkudk/cli-proxy-api-management-center-secure:v1.26.7}
+    image: ${MANAGEMENT_IMAGE:-bbkudk/cli-proxy-api-management-center-secure:v1.27.2-v0.81.0}
     build:
       context: ../..
       dockerfile: deployment/docker/Dockerfile
       args:
-        VERSION: ${MANAGEMENT_VERSION:-v1.26.7}
+        VERSION: ${MANAGEMENT_VERSION:-v1.27.2}
         NONO_VERSION: ${NONO_VERSION:-0.81.0}
     container_name: cli-proxy-management-center
     depends_on:

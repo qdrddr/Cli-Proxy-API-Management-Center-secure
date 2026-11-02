@@ -9,6 +9,7 @@ usage() {
   echo "  No tag: build from submodule HEAD (must be exactly on a git tag)" >&2
   echo "  With tag: checkout tag, sync deployment/docker, then build and push" >&2
   echo "Example: $(basename "$0") v1.26.7  # pushes bbkudk/cli-proxy-api-management-center-secure:v1.26.7-0.81.0" >&2
+  echo "         $(basename "$0") v1.26.7-0.81.0  # composite git/docker tag" >&2
   echo "Env: DOCKER_IMAGE (default bbkudk/cli-proxy-api-management-center-secure), NONO_VERSION (default 0.81.0)" >&2
   echo "  DOCKER_PLATFORMS (optional, e.g. linux/amd64,linux/arm64) — uses buildx and --push" >&2
 }
@@ -19,6 +20,8 @@ if [[ $# -gt 1 ]]; then
 fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/parse-release-tag.sh
+source "${ROOT}/scripts/lib/parse-release-tag.sh"
 SUBMODULE="${ROOT}/Cli-Proxy-API-Management-Center"
 DOCKER_IMAGE="${DOCKER_IMAGE:-bbkudk/cli-proxy-api-management-center-secure}"
 NONO_VERSION="${NONO_VERSION:-0.81.0}"
@@ -31,15 +34,16 @@ if ! git -C "$SUBMODULE" rev-parse --git-dir >/dev/null 2>&1; then
 fi
 
 if [[ $# -eq 1 ]]; then
-  BASE_TAG="$1"
+  parse_release_tag "$1"
   "${ROOT}/scripts/checkout-submodule-tag.sh" "$BASE_TAG"
 else
-  BASE_TAG="$(git -C "$SUBMODULE" describe --tags --exact-match HEAD 2>/dev/null || true)"
-  if [[ -z "$BASE_TAG" ]]; then
+  upstream_tag="$(git -C "$SUBMODULE" describe --tags --exact-match HEAD 2>/dev/null || true)"
+  if [[ -z "$upstream_tag" ]]; then
     echo "Submodule HEAD is not exactly on a git tag." >&2
     echo "Pass a tag: ./scripts/build-and-push-image.sh v1.26.7" >&2
     exit 1
   fi
+  parse_release_tag "$upstream_tag"
 fi
 
 if [[ ! "$BASE_TAG" =~ ^[A-Za-z0-9._-]+$ ]]; then
@@ -52,7 +56,6 @@ if [[ ! "$NONO_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   exit 1
 fi
 
-DOCKER_TAG="${BASE_TAG}-${NONO_VERSION}"
 IMAGE_REF="${DOCKER_IMAGE}:${DOCKER_TAG}"
 
 "${ROOT}/scripts/copy-deployment-docker.sh"

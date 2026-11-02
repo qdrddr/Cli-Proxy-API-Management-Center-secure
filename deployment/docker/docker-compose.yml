@@ -62,7 +62,7 @@ services:
       dockerfile: deployment/docker/Dockerfile
       args:
         VERSION: ${MANAGEMENT_VERSION:-v1.26.7}
-        NONO_VERSION: ${NONO_VERSION:-0.80.0}
+        NONO_VERSION: ${NONO_VERSION:-0.81.0}
     container_name: cli-proxy-management-center
     depends_on:
       cli-proxy-api:

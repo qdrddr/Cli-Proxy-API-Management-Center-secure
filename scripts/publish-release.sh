@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Tag this repo with the Management Center submodule tag, push, and publish a GitHub release (triggers CI).
+# Tag this repo with a composite ref, push, and publish a GitHub release (triggers CI).
 # Requires: gh auth login, push access to origin.
 # ./scripts/publish-release.sh
 # ./scripts/publish-release.sh v1.26.7
 set -euo pipefail
 
 usage() {
-  echo "Usage: $(basename "$0") [git-tag]" >&2
+  echo "Usage: $(basename "$0") [upstream-git-tag]" >&2
   echo "  No tag: use submodule HEAD (must be exactly on a git tag)" >&2
-  echo "  With tag: checkout that tag in the submodule, then release" >&2
-  echo "Example: $(basename "$0") v1.26.7" >&2
+  echo "  With tag: checkout that tag in the submodule, then release composite tag" >&2
+  echo "Example: NONO_VERSION=0.81.0 $(basename "$0") v1.26.7  # creates v1.26.7-0.81.0" >&2
 }
 
 if [[ $# -gt 1 ]]; then
@@ -18,8 +18,11 @@ if [[ $# -gt 1 ]]; then
 fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/parse-release-tag.sh
+source "${ROOT}/scripts/lib/parse-release-tag.sh"
 SUBMODULE="${ROOT}/Cli-Proxy-API-Management-Center"
 DOCKER_IMAGE="${DOCKER_IMAGE:-bbkudk/cli-proxy-api-management-center-secure}"
+NONO_VERSION="${NONO_VERSION:-0.81.0}"
 
 if ! git -C "$SUBMODULE" rev-parse --git-dir >/dev/null 2>&1; then
   echo "Submodule not initialized at ${SUBMODULE}." >&2
@@ -33,38 +36,41 @@ if ! command -v gh >/dev/null 2>&1; then
 fi
 
 if [[ $# -eq 1 ]]; then
-  TAG="$1"
-  "${ROOT}/scripts/checkout-submodule-tag.sh" "$TAG"
+  parse_release_tag "$1"
+  "${ROOT}/scripts/checkout-submodule-tag.sh" "$BASE_TAG"
 else
-  TAG="$(git -C "$SUBMODULE" describe --tags --exact-match HEAD 2>/dev/null || true)"
-  if [[ -z "$TAG" ]]; then
+  upstream_tag="$(git -C "$SUBMODULE" describe --tags --exact-match HEAD 2>/dev/null || true)"
+  if [[ -z "$upstream_tag" ]]; then
     echo "Submodule HEAD is not exactly on a git tag." >&2
     echo "Pass a tag: ./scripts/publish-release.sh v1.26.7" >&2
     exit 1
   fi
+  parse_release_tag "$upstream_tag"
 fi
 
-if ! git -C "$SUBMODULE" rev-parse "refs/tags/${TAG}^{commit}" >/dev/null 2>&1; then
-  echo "Tag ${TAG} not found in submodule." >&2
+RELEASE_TAG="$DOCKER_TAG"
+
+if ! git -C "$SUBMODULE" rev-parse "refs/tags/${BASE_TAG}^{commit}" >/dev/null 2>&1; then
+  echo "Tag ${BASE_TAG} not found in submodule." >&2
   exit 1
 fi
 
 cd "$ROOT"
 
-if git rev-parse "refs/tags/${TAG}" >/dev/null 2>&1; then
-  echo "Tag ${TAG} already exists in this repository." >&2
+if git rev-parse "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+  echo "Tag ${RELEASE_TAG} already exists in this repository." >&2
   echo "Delete locally/remotely first or choose another tag." >&2
   exit 1
 fi
 
-if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
-  echo "Tag ${TAG} already exists on origin." >&2
+if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+  echo "Tag ${RELEASE_TAG} already exists on origin." >&2
   exit 1
 fi
 
 if ! git diff --quiet -- Cli-Proxy-API-Management-Center; then
   git add Cli-Proxy-API-Management-Center
-  git commit -m "Pin Cli-Proxy-API-Management-Center at ${TAG}"
+  git commit -m "Pin Cli-Proxy-API-Management-Center at ${BASE_TAG}"
 fi
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
@@ -88,21 +94,21 @@ if [[ "$BRANCH" != "HEAD" ]]; then
   fi
 fi
 
-git tag -a "$TAG" -m "Release ${TAG} (CLI Proxy API Management Center ${TAG})"
-git push origin "$TAG"
+git tag -a "$RELEASE_TAG" -m "Release ${RELEASE_TAG} (Management Center ${BASE_TAG} + nono ${NONO_VERSION})"
+git push origin "$RELEASE_TAG"
 
 NOTES_FILE="$(mktemp)"
 trap 'rm -f "$NOTES_FILE"' EXIT
 {
-  echo "Docker image \`${DOCKER_IMAGE}:${TAG}\` (and \`:latest\` when this is the newest upstream semver tag)."
+  echo "Docker image \`${DOCKER_IMAGE}:${RELEASE_TAG}\`."
   echo
-  echo "Built from [router-for-me/Cli-Proxy-API-Management-Center](https://github.com/router-for-me/Cli-Proxy-API-Management-Center) at \`${TAG}\`, with deployment overlay from [qdrddr/Cli-Proxy-API-Management-Center-secure](https://github.com/qdrddr/Cli-Proxy-API-Management-Center-secure)."
+  echo "Built from [router-for-me/Cli-Proxy-API-Management-Center](https://github.com/router-for-me/Cli-Proxy-API-Management-Center) at \`${BASE_TAG}\` (nono ${NONO_VERSION}), with deployment overlay from this repo."
   echo
   echo "Submodule commit: \`$(git -C "$SUBMODULE" rev-parse --short HEAD)\`"
 } >"$NOTES_FILE"
 
-gh release create "$TAG" \
-  --title "$TAG" \
+gh release create "$RELEASE_TAG" \
+  --title "$RELEASE_TAG" \
   --notes-file "$NOTES_FILE"
 
-echo "Published release ${TAG}. CI will push ${DOCKER_IMAGE}:${TAG} to Docker Hub."
+echo "Published release ${RELEASE_TAG}. CI will push ${DOCKER_IMAGE}:${RELEASE_TAG} to Docker Hub."

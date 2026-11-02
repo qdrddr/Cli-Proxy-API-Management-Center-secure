@@ -27,7 +27,7 @@ Pushing a composite tag runs CI; a GitHub Release is created automatically after
 
 ```bash
 ./scripts/re-release.sh --app v1.26.7 --nono 0.81.0
-./scripts/re-release.sh v1.26.7-0.81.0           # CI from main (same Docker tag)
+./scripts/re-release.sh v1.26.7-0.81.0           # CI checks out git tag v1.26.7-0.81.0
 ./scripts/re-release.sh v1.26.7-0.81.0 --local   # docker login, then build & push locally
 ./scripts/re-release.sh v1.26.7-0.81.0 --retag   # move composite git tag to HEAD, force-push
 ```

@@ -9,7 +9,7 @@ Thin wrapper around [router-for-me/Cli-Proxy-API-Management-Center](https://gith
 ```bash
 git submodule update --init --recursive
 git checkout main && git pull
-NONO_VERSION=0.81.0 ./scripts/publish-release.sh v1.26.7   # creates v1.26.7-0.81.0
+./scripts/publish-release.sh --app v1.26.7 --nono 0.81.0   # creates v1.26.7-0.81.0
 ```
 
 Creates composite git tag + GitHub release → CI builds and pushes the image (`build` environment needs `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN`).
@@ -26,6 +26,7 @@ Pushing a composite tag runs CI; a GitHub Release is created automatically after
 ## Re-run build for an existing tag
 
 ```bash
+./scripts/re-release.sh --app v1.26.7 --nono 0.81.0
 ./scripts/re-release.sh v1.26.7-0.81.0           # CI from main (same Docker tag)
 ./scripts/re-release.sh v1.26.7-0.81.0 --local   # docker login, then build & push locally
 ./scripts/re-release.sh v1.26.7-0.81.0 --retag   # move composite git tag to HEAD, force-push

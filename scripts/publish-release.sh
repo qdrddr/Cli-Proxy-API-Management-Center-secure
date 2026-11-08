@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
-# Tag this repo with a composite ref, push, and publish a GitHub release (triggers CI).
+# Pin upstream, push canonical git tag, publish GitHub release (tag push triggers Docker CI).
 # Requires: gh auth login, push access to origin.
 #
 # ./scripts/publish-release.sh --app v1.27.2 --nono 0.81.0
 # ./scripts/publish-release.sh v1.27.2-v0.81.0
+# ./scripts/publish-release.sh v1.27.2-v0.81.0 --force
+# gh workflow run publish-release.yml -f release=v1.27.3-v0.81.0
 set -euo pipefail
 
 usage() {
-  echo "Usage: $(basename "$0") --app <upstream-tag> [--nono <semver>]" >&2
-  echo "       $(basename "$0") <canonical-tag>" >&2
+  echo "Usage: $(basename "$0") --app <upstream-tag> [--nono <semver>] [--force]" >&2
+  echo "       $(basename "$0") <release-name> [--force]" >&2
+  echo "  release-name  Canonical git tag, Docker tag, and GitHub release title (e.g. v1.27.3-v0.81.0)" >&2
   echo "  --app   Upstream app tag (e.g. v1.27.2); --nono defaults to 0.81.0 or NONO_VERSION" >&2
+  echo "  --force Re-point an existing tag at HEAD, recreate the release, and trigger CI" >&2
   echo "  No args: use submodule HEAD (must be exactly on a git tag)" >&2
-  echo "Example: $(basename "$0") --app v1.27.2 --nono 0.81.0  # git/docker tag v1.27.2-v0.81.0" >&2
-  echo "Example: $(basename "$0") v1.27.2-v0.81.0" >&2
 }
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -20,11 +22,32 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${ROOT}/scripts/lib/parse-release-tag.sh"
 # shellcheck source=lib/resolve-release-args.sh
 source "${ROOT}/scripts/lib/resolve-release-args.sh"
+# shellcheck source=lib/publish-git-release.sh
+source "${ROOT}/scripts/lib/publish-git-release.sh"
 SUBMODULE="${ROOT}/Cli-Proxy-API-Management-Center"
 DOCKER_IMAGE="${DOCKER_IMAGE:-bbkudk/cli-proxy-api-management-center-secure}"
 
+FORCE_RETAG=0
+RESOLVE_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --force)
+      FORCE_RETAG=1
+      shift
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    *)
+      RESOLVE_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
 set +e
-resolve_release_tag_args "$@"
+resolve_release_tag_args "${RESOLVE_ARGS[@]}"
 rc=$?
 set -e
 if [[ "$rc" -eq 2 ]]; then
@@ -50,13 +73,13 @@ if [[ "${RESOLVE_FROM_SUBMODULE:-0}" -eq 1 ]]; then
   upstream_tag="$(git -C "$SUBMODULE" describe --tags --exact-match HEAD 2>/dev/null || true)"
   if [[ -z "$upstream_tag" ]]; then
     echo "Submodule HEAD is not exactly on a git tag." >&2
-    echo "Pass --app v1.27.2 or a positional canonical tag." >&2
+    echo "Pass --app v1.27.2 or a positional release name." >&2
     exit 1
   fi
   export NONO_VERSION
   canonical_release_tag "$upstream_tag" "${NONO_VERSION#v}"
 else
-  "${ROOT}/scripts/checkout-submodule-tag.sh" "$BASE_TAG"
+  prepare_management_center_release_tree "$ROOT" "$BASE_TAG"
 fi
 
 RELEASE_TAG="$DOCKER_TAG"
@@ -68,45 +91,23 @@ fi
 
 cd "$ROOT"
 
-if git rev-parse "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
-  echo "Tag ${RELEASE_TAG} already exists in this repository." >&2
-  echo "Use ./scripts/re-release.sh ${RELEASE_TAG} to rebuild the same tag." >&2
-  exit 1
-fi
-
-if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
-  echo "Tag ${RELEASE_TAG} already exists on origin." >&2
-  exit 1
-fi
-
-if ! git diff --quiet -- Cli-Proxy-API-Management-Center; then
-  git add Cli-Proxy-API-Management-Center
-  git commit -m "Pin Cli-Proxy-API-Management-Center at ${BASE_TAG}"
-fi
-
-if ! git diff --quiet || ! git diff --cached --quiet; then
-  echo "Working tree has uncommitted changes. Commit or stash before releasing." >&2
-  exit 1
-fi
-
-BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-if [[ "$BRANCH" != "HEAD" ]]; then
-  UPSTREAM="$(git rev-parse --abbrev-ref "@{u}" 2>/dev/null || true)"
-  if [[ -n "$UPSTREAM" ]]; then
-    LOCAL="$(git rev-parse HEAD)"
-    REMOTE="$(git rev-parse "$UPSTREAM" 2>/dev/null || true)"
-    if [[ -n "$REMOTE" && "$LOCAL" != "$REMOTE" ]]; then
-      echo "Pushing ${BRANCH} so the release tag points at commits on GitHub..."
-      git push origin "HEAD:${BRANCH}"
-    fi
-  else
-    echo "Branch ${BRANCH} has no upstream; pushing HEAD to origin..."
-    git push origin HEAD
+if tag_exists_locally_or_remote "$RELEASE_TAG"; then
+  if [[ "$FORCE_RETAG" -ne 1 ]]; then
+    echo "Release/tag ${RELEASE_TAG} already exists." >&2
+    echo "Use ./scripts/publish-release.sh ${RELEASE_TAG} --force or re-release.sh --retag to rebuild." >&2
+    exit 1
   fi
+  echo "Retagging ${RELEASE_TAG} at $(git rev-parse --short HEAD)..."
 fi
 
-git tag -a "$RELEASE_TAG" -m "Release ${RELEASE_TAG} (Management Center ${BASE_TAG} + nono ${NONO_VERSION})"
-git push origin "$RELEASE_TAG"
+push_branch_if_ahead
+
+TAG_MESSAGE="Release ${RELEASE_TAG} (Management Center ${BASE_TAG} + nono ${NONO_VERSION})"
+if [[ "$FORCE_RETAG" -eq 1 ]]; then
+  TAG_MESSAGE="Rebuild ${RELEASE_TAG} at $(git rev-parse --short HEAD)"
+fi
+
+push_release_git_tag "$RELEASE_TAG" "$TAG_MESSAGE" "$FORCE_RETAG"
 
 NOTES_FILE="$(mktemp)"
 trap 'rm -f "$NOTES_FILE"' EXIT
@@ -118,8 +119,6 @@ trap 'rm -f "$NOTES_FILE"' EXIT
   echo "Submodule commit: \`$(git -C "$SUBMODULE" rev-parse --short HEAD)\`"
 } >"$NOTES_FILE"
 
-gh release create "$RELEASE_TAG" \
-  --title "$RELEASE_TAG" \
-  --notes-file "$NOTES_FILE"
+publish_github_release "$RELEASE_TAG" "$NOTES_FILE" "$FORCE_RETAG"
 
-echo "Published release ${RELEASE_TAG}. CI will push ${DOCKER_IMAGE}:${RELEASE_TAG} to Docker Hub."
+echo "Published release ${RELEASE_TAG}. Tag push will run Release Docker Image → ${DOCKER_IMAGE}:${RELEASE_TAG}"

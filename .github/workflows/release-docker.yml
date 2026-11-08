@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*-v*'
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       release:
@@ -12,11 +14,18 @@ on:
         type: string
 
 concurrency:
-  group: release-docker-${{ github.ref_name || inputs.release }}
+  group: release-docker-${{
+    github.event_name == 'release' && github.event.release.tag_name
+    || github.event_name == 'workflow_dispatch' && inputs.release
+    || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   build-and-push:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      (github.event_name == 'release' && contains(github.event.release.tag_name, '-v'))
     runs-on: ubuntu-latest
     environment: build
     permissions:
@@ -26,12 +35,22 @@ jobs:
       NONO_VERSION: "0.81.0"
 
     steps:
+      - name: Checkout repository (bootstrap)
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'push' && github.ref || github.event_name == 'release' && format('refs/tags/{0}', github.event.release.tag_name) || 'main' }}
+          fetch-depth: 0
+          fetch-tags: true
+          submodules: false
+
       - name: Resolve release tag
         id: meta
         run: |
           set -euo pipefail
           if [[ "${{ github.event_name }}" == "push" ]]; then
             REF="${{ github.ref_name }}"
+          elif [[ "${{ github.event_name }}" == "release" ]]; then
+            REF="${{ github.event.release.tag_name }}"
           else
             REF="${{ inputs.release }}"
           fi
